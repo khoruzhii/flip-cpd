@@ -3,10 +3,6 @@
 [![arXiv:2502.13266](https://img.shields.io/badge/arXiv-2502.13266-b31b1b.svg)](https://www.arxiv.org/pdf/2502.13266)
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-qdiag.xyz%2Fcpd-0b5fff?logo=google-chrome&logoColor=white)](https://qdiag.xyz/cpd/)
 
-<!-- > Flip-graph search for low-rank CP decompositions of matrix multiplication tensors and structured matrix formats. -->
-
-<!-- ## Motivation -->
-
 Matrix multiplication algorithms can be viewed as canonical polyadic (CP) decompositions of the matrix multiplication tensor. Classic examples such as Strassen’s 2×2 algorithm show that the same bilinear map can admit very different ranks, and that reducing this rank directly translates into fewer scalar multiplications.
 
 <p align="center">
@@ -31,7 +27,7 @@ Many kernels that appear in linear algebra libraries and machine learning worklo
 
 Figure 2 shows how exploiting structure in $G G^\mathrm{T}$ products leads to schemes that are cheaper than applying a generic fast matrix multiplication algorithm to the same problem. The code in this repository is designed to search exactly this kind of structured schemes.
 
-At the core of the approach is a flip graph over bilinear schemes. Each node of this graph represents a CP decomposition (an algorithm) for a fixed bilinear map, and edges correspond to local algebraic transformations that preserve correctness while altering the internal structure of the scheme. By performing random walks and local improvements on this graph over finite fields, and then lifting the resulting decompositions to \(\mathbb{Z}\) or \(\mathbb{Q}\), the implementation explores the space of algorithms. 
+At the core of the approach is a flip graph over bilinear schemes. Each node of this graph represents a CP decomposition (an algorithm) for a fixed bilinear map, and edges correspond to local algebraic transformations that preserve correctness while altering the internal structure of the scheme. By performing random walks and local improvements on this graph over finite fields, and then lifting the resulting decompositions to $\mathbb{Z}$ or $\mathbb{Q}$, the implementation explores the space of algorithms.
 
 <p align="center">
   <img
