@@ -135,6 +135,7 @@ private:
     int stop_attempts;
     bool use_plus;
     bool save_pools;
+    int verbose;
     PoolRunLogger logger;
 
     // Tensor ground truth
@@ -176,7 +177,8 @@ public:
                int max_att,
                int stop_att,
                bool use_p,
-               bool save_p)
+               bool save_p,
+               int verb)
         : name(std::move(tensor_name)),
           tensor_path(std::move(tensor_path_)),
           op(std::move(operation_for_log)),
@@ -193,6 +195,7 @@ public:
           stop_attempts(stop_att),
           use_plus(use_p),
           save_pools(save_p),
+          verbose(verb),
           seed_gen(std::random_device{}()) {}
 
     // Try to find a scheme of strictly smaller rank starting from 'start'
@@ -311,7 +314,7 @@ public:
         }
 
         // Log header
-        std::cout << "=== Pool-based Tensor Search ===\n";
+        std::cout << "=== Pool-based Flip Graph Search ===\n";
         std::cout << "Tensor name: " << name << "\n";
         std::cout << "Operation: " << op << "\n";
         std::cout << "Dimensions: " << n1 << "x" << n2 << "x" << n3 << "\n";
@@ -363,6 +366,8 @@ public:
                 workers.emplace_back(&PoolSearch::worker, this);
             }
 
+            bool printed_progress = false;
+
             // Wait for enough candidates or attempts exhausted
             while (next_pool.size() <
                        static_cast<size_t>(pool_size) &&
@@ -371,12 +376,14 @@ public:
                     std::chrono::milliseconds(100));
                 pool_cv.notify_all();
 
-                if (attempts_made > 0 &&
+                if (verbose > 0 &&
+                    attempts_made > 0 &&
                     attempts_made % 100 == 0) {
                     std::cout << "  Attempts: " << attempts_made
                               << ", Found: " << next_pool.size()
                               << "/" << pool_size << "\r"
                               << std::flush;
+                    printed_progress = true;
                 }
 
                 // Stop early if nothing found after stop_attempts
@@ -385,7 +392,10 @@ public:
                     break;
                 }
             }
-            std::cout << "\n";
+
+            if (printed_progress) {
+                std::cout << "\n";
+            }
 
             // Stop workers
             stop_workers = true;
@@ -534,6 +544,7 @@ int main(int argc, char* argv[]) {
     int stop_attempts = 20000;
     bool use_plus = false;
     bool save_pools = false;
+    int verbose = 0;
 
     app.add_option("--id",
                    id,
@@ -573,6 +584,10 @@ int main(int argc, char* argv[]) {
     app.add_flag("--save",
                  save_pools,
                  "Save verified pools to files and JSON logs");
+    app.add_option("-v,--verbose",
+                   verbose,
+                   "Verbose level (0 = default, 1 = show pool progress)")
+        ->default_val(0);
 
     CLI11_PARSE(app, argc, argv);
 
@@ -609,7 +624,8 @@ int main(int argc, char* argv[]) {
         max_attempts,
         stop_attempts,
         use_plus,
-        save_pools
+        save_pools,
+        verbose
     );
 
     search.run();
