@@ -3,11 +3,11 @@
 [![arXiv:2511.10786](https://img.shields.io/badge/arXiv-2511.10786-b31b1b.svg)](https://arxiv.org/abs/2511.10786)
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-qdiag.xyz%2Fcpd-0b5fff?logo=google-chrome&logoColor=white)](https://qdiag.xyz/cpd/)
 
-This repository provides tools for searching low-rank decompositions of arbitrary 3-way tensors, in particular encoding bilinear maps. If a bilinear map takes inputs with coordinates $A_i$, $B_j$ and produces outputs $C_k$, it can be written as
+This repository provides tools for searching low-rank decompositions of arbitrary 3-way tensors, in particular encoding bilinear maps. If a bilinear map takes inputs with coordinates _Ai_, _Bⱼ_ and produces outputs _Cₖ_, it can be written as
 ```math
 C_k = \sum_{i,j} T_{ijk} A_i B_j
 ```
-for some tensor $T_{ijk}$. A rank-_r_ algorithm corresponds to a factorization
+for some tensor _Tᵢⱼₖ_. A rank-_r_ algorithm corresponds to a factorization
 ```math
 T_{ijk} = \sum_{q=1}^r U_{qi} V_{qj} W_{qk},
 ```
@@ -21,7 +21,7 @@ which for the matrix multiplication reduces the number of scalar multiplications
   >
 </p>
 
-The main workflow in this project is to first search for such tensor decompositions over a small finite field, most commonly 𝔽₂ or 𝔽₃. Then use Hensel lifting to pass to an extension field $𝔽_{p^k}$, and finally apply rational reconstruction to obtain coefficients over ℤ or ℚ. For general matrix multiplication, structured matrix multiplication, polynomial multiplication, generators in `scripts/` can be used to generate the corresponding tensors (see `docs/generators.md` and `examples/`).
+The main workflow in this project is to first search for such tensor decompositions over a small finite field, most commonly 𝔽₂ or 𝔽₃. Then use Hensel lifting to pass to an extension field mod _pᵏ_, and finally apply rational reconstruction to obtain coefficients over ℤ or ℚ. For general matrix multiplication, structured matrix multiplication, polynomial multiplication, generators in `scripts/` can be used to generate the corresponding tensors (see `docs/generators.md` and `examples/`).
 
 To the best of our knowledge, this is the first open-source flip-graph search implementation that also works over 𝔽₃, making it possible to discover schemes with ½ coefficients after rational reconstruction. The modular search core is inspired by existing 𝔽₂-based implementations such as [flips](https://github.com/jakobmoosbauer/flips) and [symmetric-flips](https://github.com/jakobmoosbauer/symmetric-flips). In addition, `flip-cpd` integrates fast Hensel lifting and scheme selection into a single pipeline, so that the full “search → lift → select” workflow is implemented end-to-end within this repository. The current implementation supports tensors with mode sizes up to 64 and, on standard hardware, achieves about 10⁷ flip graph steps per second per thread, with multi-threaded search supported.
 
@@ -55,7 +55,7 @@ The C++ tools are organized around three main stages: modular search (`search2`/
 
 `search`. These programs perform pool-based flip graph search for low-rank decompositions over a finite field. `search2` works over 𝔽₂ and `search3` over 𝔽₃. The same `2`/`3` suffix convention is used for the other tools. They take a tensor name (matching an entry in `data/tensors/`) and explore the flip graph.
 
-`lift`. These tools take modular schemes found by `search2`/`search3` and perform Hensel lifting followed by rational reconstruction. Starting from schemes over 𝔽₂ or 𝔽₃, they lift to an extension field $𝔽_{p^k}$ and then reconstruct coefficients over ℤ or ℚ. The resulting lifted and rational schemes are written to the corresponding directories under `data/`.
+`lift`. These tools take modular schemes found by `search2`/`search3` and perform Hensel lifting followed by rational reconstruction. Starting from schemes over 𝔽₂ or 𝔽₃, they lift to an extension field mod _pᵏ_ and then reconstruct coefficients over ℤ or ℚ. The resulting lifted and rational schemes are written to the corresponding directories under `data/`.
 
 `select`. Once a collection of rational schemes is available, these programs read them, analyse possible recursions, and select Pareto-optimal schemes according to rank, number of recursion calls and number of additions. The selected schemes are written both in `.npy` format and in a human-readable `.txt` format.
 
@@ -63,7 +63,7 @@ The C++ tools are organized around three main stages: modular search (`search2`/
 
 ## Output
 
-Selected schemes are written to `data/schemes_selected/` in two formats: `.npy` files containing the triplet $(U, V, W)$ in a fixed binary layout, and `.txt` files with a human-readable description of the same scheme. See `examples/` and `docs/formats.md` for details. 
+Selected schemes are written to `data/schemes_selected/` in two formats: `.npy` files containing the triplet (_U_, _V_, _W_) in a fixed binary layout, and `.txt` files with a human-readable description of the same scheme. See `examples/` and `docs/formats.md` for details.
 
 In addition, the repository includes a set of reference schemes from the paper in `data/schemes_paper/`, provided in both `.npy` and `.txt` form. These files can be loaded and analysed with the same tooling as newly generated schemes.
 
@@ -72,9 +72,9 @@ In addition, the repository includes a set of reference schemes from the paper i
 Several extensions are planned:
 
 * support for approximate schemes 𝔽₂[ε] [[link](https://epub.jku.at/obvulihs/download/pdf/9217131)];
-* flip-graph search specialized to commutative schemes [[link](https://arxiv.org/abs/2506.22113)];
-* flip-graph search with symmetry [[link](https://arxiv.org/abs/2502.04514)];
-* other base fields as 𝔽₄, 𝔽₃[i].
+* flip graph search specialized to commutative schemes [[link](https://arxiv.org/abs/2506.22113)];
+* flip graph search with symmetry [[link](https://arxiv.org/abs/2502.04514)];
+* other base fields, e.g. 𝔽₄, 𝔽₃[i].
 
 Contributions towards these or related extensions are welcome; feel free to open an issue or a pull request.
 
