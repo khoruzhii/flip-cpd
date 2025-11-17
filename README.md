@@ -21,7 +21,7 @@ which for the matrix multiplication reduces the number of scalar multiplications
   >
 </p>
 
-The main workflow in this project is to first search for such tensor decompositions over a small finite field, most commonly 𝔽₂ or 𝔽₃. Then use Hensel lifting to pass to an extension field $𝔽_{p^k}$, and finally apply rational reconstruction to obtain coefficients over ℤ or ℚ. For general matrix multiplication and structured matrix multiplication, `scripts/generator.py` can be used to generate the corresponding tensors (see `docs/generator.md` and `examples/`).
+The main workflow in this project is to first search for such tensor decompositions over a small finite field, most commonly 𝔽₂ or 𝔽₃. Then use Hensel lifting to pass to an extension field $𝔽_{p^k}$, and finally apply rational reconstruction to obtain coefficients over ℤ or ℚ. For general matrix multiplication, structured matrix multiplication, polynomial multiplication, generators in `scripts/` can be used to generate the corresponding tensors (see `docs/generators.md` and `examples/`).
 
 To the best of our knowledge, this is the first open-source flip-graph search implementation that also works over 𝔽₃, making it possible to discover schemes with ½ coefficients after rational reconstruction. The modular search core is inspired by existing 𝔽₂-based implementations such as [flips](https://github.com/jakobmoosbauer/flips) and [symmetric-flips](https://github.com/jakobmoosbauer/symmetric-flips). In addition, `flip-cpd` integrates fast Hensel lifting and scheme selection into a single pipeline, so that the full “search → lift → select” workflow is implemented end-to-end within this repository. The current implementation supports tensors with mode sizes up to 64 and, on standard hardware, achieves about 10⁷ flip graph steps per second per thread, with multi-threaded search supported.
 
@@ -66,6 +66,17 @@ The C++ tools are organized around three main stages: modular search (`search2`/
 Selected schemes are written to `data/schemes_selected/` in two formats: `.npy` files containing the triplet $(U, V, W)$ in a fixed binary layout, and `.txt` files with a human-readable description of the same scheme. See `examples/` and `docs/formats.md` for details. 
 
 In addition, the repository includes a set of reference schemes from the paper in `data/schemes_paper/`, provided in both `.npy` and `.txt` form. These files can be loaded and analysed with the same tooling as newly generated schemes.
+
+## Planned extensions
+
+Several extensions are planned:
+
+* support for approximate schemes 𝔽₂[ε] [[link](https://epub.jku.at/obvulihs/download/pdf/9217131)];
+* flip-graph search specialized to commutative schemes [[link](https://arxiv.org/abs/2506.22113)];
+* flip-graph search with symmetry [[link](https://arxiv.org/abs/2502.04514)];
+* other base fields as 𝔽₄, 𝔽₃[i].
+
+Contributions towards these or related extensions are welcome; feel free to open an issue or a pull request.
 
 ## Citation
 
