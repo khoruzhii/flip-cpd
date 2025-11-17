@@ -21,7 +21,9 @@ which for the matrix multiplication reduces the number of scalar multiplications
   >
 </p>
 
-The main workflow in this project is to first search for such tensor decompositions over a small finite field, most commonly 𝔽₂ or 𝔽₃. We look for low-rank decompositions modulo a prime, then use Hensel lifting to pass to an extension field $𝔽_{p^k}$ with moderate $k$, and finally apply rational reconstruction to obtain coefficients over ℤ or ℚ. For general matrix multiplication and structured matrix multiplication, `scripts/generator.py` can be used to generate the corresponding tensors (see `docs/generator.md`).
+The main workflow in this project is to first search for such tensor decompositions over a small finite field, most commonly 𝔽₂ or 𝔽₃. Then use Hensel lifting to pass to an extension field $𝔽_{p^k}$, and finally apply rational reconstruction to obtain coefficients over ℤ or ℚ. For general matrix multiplication and structured matrix multiplication, `scripts/generator.py` can be used to generate the corresponding tensors (see `docs/generator.md` and `examples/`).
+
+To the best of our knowledge, this is the first open-source flip-graph search implementation that also works over 𝔽₃, making it possible to discover schemes with ½ coefficients after rational reconstruction. The modular search core is inspired by existing 𝔽₂-based implementations such as [flips](https://github.com/jakobmoosbauer/flips) and [symmetric-flips](https://github.com/jakobmoosbauer/symmetric-flips). In addition, `flip-cpd` integrates fast Hensel lifting and scheme selection into a single pipeline, so that the full “search → lift → select” workflow is implemented end-to-end within this repository. The current implementation supports tensors with mode sizes up to 64 and, on standard hardware, achieves about 10⁷ flip graph steps per second per thread, with multi-threaded search supported.
 
 ## Installation
 
