@@ -1,5 +1,12 @@
-// select.h v2
+// select.h v3
 // Scheme selection and recursion-analysis utilities
+//
+// Note on WDIAG:
+//   By default (no WDIAG), t-operations treat a term as "t-recursive"
+//   if U_q == V_q (Gram-style criterion).
+//   If compiled with -DWDIAG, t-recursions for "xt" operations are detected
+//   using the diagonal support of W_q: a term is "t-recursive" if it
+//   contributes only to diagonal output entries (upper-triangular-only work).
 
 #pragma once
 
@@ -138,7 +145,7 @@ inline std::vector<int> get_diag_indices(StructChar s, int n, int nPar) {
     std::vector<int> indices;
     if (s == StructChar::U || s == StructChar::L || s == StructChar::S || s == StructChar::W) {
         for (int t = 0; t < n; ++t) {
-            int idx = (int)sym_pack_cpp(t, t, n);
+            int idx = (int)sym_pack_cpp((std::size_t)t, (std::size_t)t, (std::size_t)n);
             if (idx < nPar) indices.push_back(idx);
         }
     }
@@ -164,24 +171,26 @@ inline std::vector<std::uint64_t> build_cols_mask_left(StructChar a, int n1, int
                     ok = true;
                     break;
                 case StructChar::U:
-                    if (j >= i) { alpha = sym_pack_cpp(i, j, n1); ok = true; }
+                    if (j >= i) { alpha = sym_pack_cpp((std::size_t)i, (std::size_t)j, (std::size_t)n1); ok = true; }
                     break;
                 case StructChar::L:
-                    if (j <= i) { alpha = sym_pack_cpp(i, j, n1); ok = true; }
+                    if (j <= i) { alpha = sym_pack_cpp((std::size_t)i, (std::size_t)j, (std::size_t)n1); ok = true; }
                     break;
                 case StructChar::S:
-                    alpha = sym_pack_cpp(i, j, n1); ok = true;
+                    alpha = sym_pack_cpp((std::size_t)i, (std::size_t)j, (std::size_t)n1); ok = true;
                     break;
                 case StructChar::K:
                     if (i != j) {
-                        std::size_t p = (i < j) ? i : j;
-                        std::size_t q = (i < j) ? j : i;
-                        alpha = skew_pack_cpp(p, q, n1);
+                        std::size_t p = (i < j) ? (std::size_t)i : (std::size_t)j;
+                        std::size_t q = (i < j) ? (std::size_t)j : (std::size_t)i;
+                        alpha = skew_pack_cpp(p, q, (std::size_t)n1);
                         ok = true;
                     }
                     break;
                 case StructChar::W:
-                    alpha = sym_pack_cpp(std::min(i, j), std::max(i, j), n1);
+                    alpha = sym_pack_cpp((std::size_t)std::min(i, j),
+                                         (std::size_t)std::max(i, j),
+                                         (std::size_t)n1);
                     ok = true;
                     break;
             }
@@ -280,8 +289,8 @@ inline TripleKey normalize_triple_symmetric(const TripleKey& key) {
 
 // Compute (#ab, #ag, #bg) for an "ab"-operation scheme
 // Special handling for 'g' structures:
-// - For "xg": ag contributes to first number, bg doesn't count (gg recursion)
-// - For "gx": bg contributes to first number, ag doesn't count (gg recursion)
+// - For "xg": ag contributes to first number, bg does not count (gg recursion)
+// - For "gx": bg contributes to first number, ag does not count (gg recursion)
 // - For "gg": nothing counts
 inline TripleKey scheme_triple_ab(const std::vector<Rational>& U,
                                   const std::vector<Rational>& V,
@@ -310,16 +319,13 @@ inline TripleKey scheme_triple_ab(const std::vector<Rational>& U,
     if (a == StructChar::G && b == StructChar::G) {
         // gg: all recursions are gg - not counted
         return {0, 0, 0};
-    }
-    else if (a != StructChar::G && b == StructChar::G) {
+    } else if (a != StructChar::G && b == StructChar::G) {
         // xg: ag gives xg recursion (same as operation), bg gives gg (not counted)
         return {ab + ag, 0, 0};
-    }
-    else if (a == StructChar::G && b != StructChar::G) {
+    } else if (a == StructChar::G && b != StructChar::G) {
         // gx: bg gives gx recursion (same as operation), ag gives gg (not counted)
         return {ab + bg, 0, 0};
-    }
-    else {
+    } else {
         // xx: both structures are not g, standard logic
         TripleKey key = {ab, ag, bg};
         if (is_symmetric) {
@@ -330,16 +336,23 @@ inline TripleKey scheme_triple_ab(const std::vector<Rational>& U,
 }
 
 // Compute (#at, #ag, #gt) for a "t"-operation scheme (C = Up(X X^T))
-// flag_t: U_q == V_q (element-wise)
-// flag_a: (U_q nnz == U_q diag nnz) OR (V_q nnz == V_q diag nnz)
-// Contributions:
-//   flag_t && flag_a -> at
-//   !flag_t && flag_a -> ag
-//   flag_t && !flag_a -> gt (only if struct is not 'g' or 'k')
-// Special handling for 'g': at and gt both contribute to first number (gt recursion)
+//
+// Legacy model (no WDIAG):
+//   flag_t: U_q == V_q (element-wise)
+//   flag_a: at least one of U_q, V_q has all nonzeros on diagonal
+//   Contributions:
+//     flag_t && flag_a -> at
+//     !flag_t && flag_a -> ag
+//     flag_t && !flag_a -> gt
+//
+// WDIAG model (-DWDIAG):
+//   flag_t: W_q has nonzeros only on diagonal output entries
+//   flag_a: same as legacy (structure of X via U/V)
+//   Contributions remain mapped via (flag_t, flag_a) as above.
 inline TripleKey scheme_triple_t(const std::vector<Rational>& U,
                                  const std::vector<Rational>& V,
-                                 int r, int nU, int nV,
+                                 const std::vector<Rational>& W,
+                                 int r, int nU, int nV, int nW,
                                  int n1, int n2, int n3,
                                  StructChar s) {
     // For 'k' (skew), always return (0,0,0)
@@ -350,14 +363,33 @@ inline TripleKey scheme_triple_t(const std::vector<Rational>& U,
     auto diag_U = get_diag_indices(s, n1, nU);
     auto diag_V = get_diag_indices(s, n3, nV);
 
+#if defined(WDIAG)
+    // Diagonal mask for W: result is Up(X X^T) over an n1 x n1 matrix,
+    // so diagonal entries correspond to sym_pack_cpp(t, t, n1).
+    std::vector<unsigned char> diagW_mask(nW, 0);
+    for (int t = 0; t < n1; ++t) {
+        std::size_t idx = sym_pack_cpp((std::size_t)t, (std::size_t)t, (std::size_t)n1);
+        if ((int)idx < nW) {
+            diagW_mask[(int)idx] = 1;
+        }
+    }
+#endif
+
     int at = 0, ag = 0, gt = 0;
 
     for (int mu = 0; mu < r; ++mu) {
         std::vector<Rational> U_row(U.begin() + mu * nU, U.begin() + (mu + 1) * nU);
         std::vector<Rational> V_row(V.begin() + mu * nV, V.begin() + (mu + 1) * nV);
+        std::vector<Rational> W_row(W.begin() + mu * nW, W.begin() + (mu + 1) * nW);
 
-        // Check flag_t: U_row == V_row element-wise
-        bool flag_t = (nU == nV) && std::equal(U_row.begin(), U_row.end(), V_row.begin());
+        bool flag_t = false;
+#if defined(WDIAG)
+        // WDIAG: term is t-recursive if it uses only diagonal outputs
+        flag_t = row_subset_mask(W_row, diagW_mask);
+#else
+        // Legacy: term is t-recursive if U_q == V_q (Gram type)
+        flag_t = (nU == nV) && std::equal(U_row.begin(), U_row.end(), V_row.begin());
+#endif
 
         // Check flag_a: at least one row has all nonzeros on diagonal
         size_t U_nnz = count_nnz(U_row);
@@ -389,8 +421,7 @@ inline TripleKey scheme_triple_t(const std::vector<Rational>& U,
     // Handle 'g' structure: at and gt both give gt recursion
     if (s == StructChar::G) {
         return {at + gt, 0, 0};
-    }
-    else {
+    } else {
         // ut, lt, st, wt: all three numbers have distinct meanings
         return {at, ag, gt};
     }

@@ -366,8 +366,8 @@ int main(int argc, char** argv) {
 
                 for (size_t i = 0; i < num_schemes; ++i) {
                     TripleKey triple = scheme_triple_t(
-                        all_U[i], all_V[i],
-                        rank, nU, nV,
+                        all_U[i], all_V[i], all_W[i],
+                        rank, nU, nV, nW,
                         n1, n2, n3,
                         s
                     );
