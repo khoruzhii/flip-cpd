@@ -433,7 +433,7 @@ def save_tensor_and_meta(coo, op, n1, n2, n3, outdir):
         "nU": int(n_u),
         "nV": int(n_v),
         "nW": int(n_w),
-        "op": op,
+        "op": None,
         "n1": int(n1),
         "n2": int(n2),
         "n3": int(n3),
