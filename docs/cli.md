@@ -23,22 +23,20 @@ Pool-based flip-graph search for low-rank tensor decompositions over a finite fi
 Typical usage is:
 
 ```bash
-bin/search2 gt-333 --target-rank 23 --save
+bin/search2 gt-444 --plus --save
 ````
 
-which runs a pool-based search for rank-23 schemes of the tensor `gt-333` over $F_2$ and saves the discovered modular schemes and logs under `data/schemes_modp/gt-333/` and `data/logs/gt-333/`. The `search3` binary behaves identically, but works over $F_3$.
+which runs a pool-based search for schemes of the tensor `gt-444` over $\mathbb{F}_2$ and saves the discovered modular schemes and logs under `data/schemes_modp/gt-444/` and `data/logs/gt-444/`. The `search3` binary behaves identically, but works over $\mathbb{F}_3$.
 
 The full help output is:
 
 ```text
 Pool-based Tensor Flip Graph Search
 
-
 bin\search2 [OPTIONS] name
 
-
 POSITIONALS:
-  name TEXT REQUIRED          Tensor name (e.g., gt-333)
+  name TEXT REQUIRED          Tensor name (e.g., gt-444)
 
 OPTIONS:
   -h,     --help              Print this help message and exit
@@ -69,22 +67,20 @@ Hensel lifting and rational reconstruction of modular schemes.
 Typical usage is:
 
 ```bash
-bin/lift2 gt-333 23
+bin/lift2 gt-444 34
 ```
 
-which reads modular rank-23 schemes for `gt-333` (produced by `search2`), lifts them from $F_2$ to an extension field $F_{2^k}$, and then reconstructs coefficients over $\mathbb{Z}$ or $\mathbb{Q}$. The output is written to `data/schemes_lifted/gt-333/` and `data/schemes_rational/gt-333/`. The `lift3` binary behaves identically over $F_3$.
+which reads modular rank-34 schemes for `gt-444` (produced by `search2`), lifts them from $F_2$ to an extension field $F_{2^k}$, and then reconstructs coefficients over $\mathbb{Z}$ or $\mathbb{Q}$. The output is written to `data/schemes_lifted/gt-444/` and `data/schemes_rational/gt-444/`. The `lift3` binary behaves identically over $F_3$.
 
 The full help output is:
 
 ```text
 Hensel lifting + rational reconstruction
 
-
 bin\lift2 [OPTIONS] name rank
 
-
 POSITIONALS:
-  name TEXT REQUIRED          Tensor name (e.g., gt-333)
+  name TEXT REQUIRED          Tensor name (e.g., gt-444)
   rank INT REQUIRED           Rank of schemes
 
 OPTIONS:
@@ -103,22 +99,20 @@ Selection of Pareto-optimal schemes with recursion analysis.
 A typical call is:
 
 ```bash
-bin/select2 gt-333 23
+bin/select2 gt-444 34
 ```
 
-which reads rational rank-23 schemes for `gt-333` from `data/schemes_rational/gt-333/`, analyses possible recursions, and selects Pareto-optimal schemes according to rank, recursion-related costs and number of additions. The selected schemes are written in both `.npy` and `.txt` formats to `data/schemes_selected/`. The `select3` binary behaves identically over $F_3$.
+which reads rational rank-34 schemes for `gt-444` from `data/schemes_rational/gt-444/`, analyses possible recursions, and selects Pareto-optimal schemes according to rank, recursion-related costs and number of additions. The selected schemes are written in both `.npy` and `.txt` formats to `data/schemes_selected/`. The `select3` binary behaves identically over $F_3$.
 
 The full help output is:
 
 ```text
 Pareto-optimal scheme selection with recursion analysis
 
-
 bin\select2 [OPTIONS] name rank
 
-
 POSITIONALS:
-  name TEXT REQUIRED          Tensor name (e.g., gt-333, ggc-333)
+  name TEXT REQUIRED          Tensor name (e.g., gt-444, ggc-333)
   rank INT REQUIRED           Rank of schemes
 
 OPTIONS:
