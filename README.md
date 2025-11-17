@@ -3,7 +3,7 @@
 [![arXiv:2511.10786](https://img.shields.io/badge/arXiv-2511.10786-b31b1b.svg)](https://arxiv.org/abs/2511.10786)
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-qdiag.xyz%2Fcpd-0b5fff?logo=google-chrome&logoColor=white)](https://qdiag.xyz/cpd/)
 
-This repository provides tools for searching low-rank decompositions of arbitrary 3-way tensors, in particular encoding bilinear maps. If a bilinear map takes inputs with coordinates _Ai_, _Bⱼ_ and produces outputs _Cₖ_, it can be written as
+This repository provides tools for searching low-rank decompositions of arbitrary 3-way tensors, in particular encoding bilinear maps. If a bilinear map takes inputs with coordinates _Aᵢ_, _Bⱼ_ and produces outputs _Cₖ_, it can be written as
 ```math
 C_k = \sum_{i,j} T_{ijk} A_i B_j
 ```
