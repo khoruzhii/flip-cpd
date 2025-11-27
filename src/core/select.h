@@ -387,7 +387,7 @@ inline TripleKey scheme_triple_t(const std::vector<Rational>& U,
         // WDIAG: term is t-recursive if it uses only diagonal outputs
         flag_t = row_subset_mask(W_row, diagW_mask);
 #else
-        // Legacy: term is t-recursive if U_q == V_q (Gram type)
+        // Default: term is t-recursive if U_q == V_q (Gram type)
         flag_t = (nU == nV) && std::equal(U_row.begin(), U_row.end(), V_row.begin());
 #endif
 
@@ -406,15 +406,14 @@ inline TripleKey scheme_triple_t(const std::vector<Rational>& U,
         }
         bool flag_a_V = (V_nnz > 0 && V_nnz == V_diag_nnz);
 
-        bool flag_a = flag_a_U || flag_a_V;
-
-        // Count contributions
-        if (flag_t && flag_a) {
-            ++at;
-        } else if (!flag_t && flag_a) {
+        if (flag_t) {
+            if (flag_a_U && flag_a_V) {
+                ++at;
+            } else {
+                ++gt;
+            }
+        } else if (flag_a_U || flag_a_V) {
             ++ag;
-        } else if (flag_t && !flag_a) {
-            ++gt;
         }
     }
 
