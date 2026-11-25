@@ -136,6 +136,7 @@ private:
     bool use_plus;
     bool save_pools;
     int verbose;
+    std::string init_path;
     PoolRunLogger logger;
 
     // Tensor ground truth
@@ -178,7 +179,8 @@ public:
                int stop_att,
                bool use_p,
                bool save_p,
-               int verb)
+               int verb,
+               std::string init_p = "")
         : name(std::move(tensor_name)),
           tensor_path(std::move(tensor_path_)),
           op(std::move(operation_for_log)),
@@ -196,6 +198,7 @@ public:
           use_plus(use_p),
           save_pools(save_p),
           verbose(verb),
+          init_path(std::move(init_p)),
           seed_gen(std::random_device{}()) {}
 
     // Try to find a scheme of strictly smaller rank starting from 'start'
@@ -204,36 +207,44 @@ public:
         const U32 search_seed = seed_gen();
         Scheme<Field> scheme(start.data, search_seed);
 
-        int current_rank = start.rank;
-        int best_rank = current_rank;
-        int flips_since_improvement = 0;
+        const int start_rank = start.rank;
+        const int max_rank = start_rank + 2;
+        int cur_rank = start_rank;
+        int flips_since_plus = 0;
+
+        // Only kick upfront when starting from a tight external seed (--init)
+        if (!init_path.empty() && use_plus && (search_seed & 1U)) {
+            int kicks = 1 + static_cast<int>((search_seed >> 1) % 2U);
+            for (int k = 0; k < kicks && cur_rank < max_rank; ++k) {
+                scheme.plus();
+                cur_rank = scheme.get_rank();
+            }
+        }
 
         for (int step = 0; step < path_limit; ++step) {
             if (!scheme.flip()) {
-                if (use_plus && !scheme.plus()) {
-                    break;
+                if (use_plus && cur_rank < max_rank && scheme.plus()) {
+                    cur_rank = scheme.get_rank();
+                    flips_since_plus = 0;
+                    continue;
                 }
-                flips_since_improvement = 0;
+                break;
             }
 
-            const int new_rank = get_rank(scheme.get_data_field());
+            cur_rank = scheme.get_rank();
 
-            if (new_rank < current_rank) {
+            if (cur_rank < start_rank) {
                 return SchemeData<Field>(scheme.get_data_field(),
-                                         new_rank,
+                                         cur_rank,
                                          search_seed);
             }
 
-            if (new_rank < best_rank) {
-                best_rank = new_rank;
-                flips_since_improvement = 0;
-            } else {
-                ++flips_since_improvement;
-            }
+            ++flips_since_plus;
 
-            if (use_plus && flips_since_improvement >= plus_lim) {
+            if (use_plus && cur_rank < max_rank && flips_since_plus >= plus_lim) {
                 if (scheme.plus()) {
-                    flips_since_improvement = 0;
+                    cur_rank = scheme.get_rank();
+                    flips_since_plus = 0;
                 }
             }
         }
@@ -341,12 +352,55 @@ public:
 
         // Seed pool
         current_pool.clear();
-        current_pool.push_back(
-            SchemeData<Field>(initial_data, initial_rank, 0));
-        std::cout << "Starting from rank " << initial_rank << "\n\n";
+        int start_rank = initial_rank;
+        if (!init_path.empty()) {
+            cnpy::NpyArray arr = cnpy::npy_load(init_path);
+            if (arr.shape.size() != 2) {
+                throw std::runtime_error("init_path must be a 2D uint64 npy array");
+            }
+            const size_t n_seeds = arr.shape[0];
+            const size_t row_len = arr.shape[1];
+            const int lanes = field_traits<Field>::is_mod2 ? 1 : 2;
+            const size_t elem_per_term = 3 * lanes;
+            if (row_len % elem_per_term != 0) {
+                throw std::runtime_error("init_path row_len not divisible by elements_per_term");
+            }
+            const int seed_rank = static_cast<int>(row_len / elem_per_term);
+            const U64* raw = arr.data<U64>();
+            for (size_t s = 0; s < n_seeds; ++s) {
+                std::vector<Field> d;
+                d.reserve(static_cast<size_t>(seed_rank) * 3);
+                for (int t = 0; t < seed_rank; ++t) {
+                    const size_t off = s * row_len + static_cast<size_t>(t) * elem_per_term;
+                    if constexpr (!field_traits<Field>::is_mod2) {
+                        B3 u; u.lo = raw[off + 0]; u.hi = raw[off + 1];
+                        B3 v; v.lo = raw[off + 2]; v.hi = raw[off + 3];
+                        B3 w; w.lo = raw[off + 4]; w.hi = raw[off + 5];
+                        d.push_back(u); d.push_back(v); d.push_back(w);
+                    } else {
+                        B2 u(raw[off + 0]); B2 v(raw[off + 1]); B2 w(raw[off + 2]);
+                        d.push_back(u); d.push_back(v); d.push_back(w);
+                    }
+                }
+                if (verify_scheme<Field>(d, T)) {
+                    current_pool.push_back(SchemeData<Field>(d, get_rank(d), 0));
+                }
+            }
+            if (current_pool.empty()) {
+                throw std::runtime_error("No verified seed schemes loaded from " + init_path);
+            }
+            start_rank = current_pool[0].rank;
+            std::cout << "Loaded " << current_pool.size()
+                      << " verified seed schemes at rank " << start_rank
+                      << " from " << init_path << "\n\n";
+        } else {
+            current_pool.push_back(
+                SchemeData<Field>(initial_data, initial_rank, 0));
+            std::cout << "Starting from rank " << initial_rank << "\n\n";
+        }
 
         // Rank descent loop
-        for (int current_target = initial_rank - 1;
+        for (int current_target = start_rank - 1;
              current_target >= target_rank;
              --current_target) {
 
@@ -545,6 +599,7 @@ int main(int argc, char* argv[]) {
     bool use_plus = false;
     bool save_pools = false;
     int verbose = 0;
+    std::string init_path = "";
 
     app.add_option("--id",
                    id,
@@ -588,6 +643,10 @@ int main(int argc, char* argv[]) {
                    verbose,
                    "Verbose level (0 = default, 1 = show pool progress)")
         ->default_val(0);
+    app.add_option("--init",
+                   init_path,
+                   "Optional seed pool .npy file (mod2 or mod3 format)")
+        ->default_val("");
 
     CLI11_PARSE(app, argc, argv);
 
@@ -625,7 +684,8 @@ int main(int argc, char* argv[]) {
         stop_attempts,
         use_plus,
         save_pools,
-        verbose
+        verbose,
+        init_path
     );
 
     search.run();

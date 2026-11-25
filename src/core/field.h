@@ -92,9 +92,33 @@ inline B3& operator-=(B3& a, const B3& b) {
     return a;
 }
 
-// Pack B3 into U64 (half bits for lo, half for hi)
+// Canonicalize B3 sign so b and -b map to the same representative
+// (lowest non-zero coordinate is forced to 1, i.e., bit in lo rather than hi).
+inline B3 canonical_b3(const B3& b) {
+    U64 nz = b.lo | b.hi;
+    if (nz == 0) return b;
+    U64 lsb = nz & (~nz + 1);
+    if (b.hi & lsb) return -b;
+    return b;
+}
+
+// Projective 64-bit hash for B3 (full 64-bit modes, invariant under negation b <-> -b)
 inline U64 pack_field(const B3& b) {
-    return (b.hi << 32) | (b.lo & 0xFFFFFFFF);
+    B3 c = canonical_b3(b);
+    constexpr U64 k0 = 0xa0761d6478bd642full;
+    constexpr U64 k1 = 0xe7037ed1a0b428dbull;
+    constexpr U64 k2 = 0x8ebc6af09c88c6e3ull;
+    constexpr U64 k3 = 0x589965cc75374cc3ull;
+    auto mum = [](U64 x, U64 y) -> U64 {
+        __uint128_t r = static_cast<__uint128_t>(x) * static_cast<__uint128_t>(y);
+        return static_cast<U64>(r) ^ static_cast<U64>(r >> 64);
+    };
+    U64 h = mum(c.hi ^ k0, c.lo ^ k1);
+    h = mum(h ^ k2, k3);
+    h ^= h >> 29;
+    h *= 0x94d049bb133111ebull;
+    h ^= h >> 31;
+    return h;
 }
 // inline U64 pack_field(const B3& b) {
 //     const U64 kMul = 0x9ddfea08eb382d69ULL;
