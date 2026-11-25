@@ -29,7 +29,8 @@ using I64 = std::int64_t;
 inline void compute_tensor(
     const std::vector<U64>& U, const std::vector<U64>& V, const std::vector<U64>& W,
     int r, int nU, int nV, int nW,
-    std::vector<I64>& T)
+    std::vector<I64>& T,
+    I64 modulus = 0)
 {
     assert(r > 0 && nU > 0 && nV > 0 && nW > 0);
     assert(U.size() == (size_t)(r * nU));
@@ -38,6 +39,30 @@ inline void compute_tensor(
     
     T.assign(nU * nV * nW, 0);
     
+    if (modulus > 0) {
+        __int128 mod128 = (__int128)modulus;
+        for (int mu = 0; mu < r; ++mu) {
+            for (int i = 0; i < nU; ++i) {
+                I64 u = (I64)U[mu * nU + i];
+                if (u == 0) continue;
+                for (int j = 0; j < nV; ++j) {
+                    I64 v = (I64)V[mu * nV + j];
+                    if (v == 0) continue;
+                    I64 uv = (I64)(((__int128)u * (__int128)v) % mod128);
+                    for (int k = 0; k < nW; ++k) {
+                        I64 w = (I64)W[mu * nW + k];
+                        if (w == 0) continue;
+                        I64 prod = (I64)(((__int128)uv * (__int128)w) % mod128);
+                        I64 acc = T[i * (nV * nW) + j * nW + k] + prod;
+                        if (acc >= modulus) acc -= modulus;
+                        T[i * (nV * nW) + j * nW + k] = acc;
+                    }
+                }
+            }
+        }
+        return;
+    }
+
     // Reordered loops for better cache locality
     for (int mu = 0; mu < r; ++mu) {
         for (int i = 0; i < nU; ++i) {
@@ -238,21 +263,24 @@ inline bool lift_tensor(
     
     // Hensel lifting loop
     for (int step = 0; step < k_steps; ++step) {
-        // Compute E = U ⊗ V ⊗ W
-        compute_tensor(U, V, W, r, nU, nV, nW, E);
-        
 #ifdef MOD3
-        // Compute modulus for current step: 3^exponent
+        // Compute modulus for current step: 3^exponent, next modulus: 3^(exponent+1)
         I64 divisor = 1;
         for (int p = 0; p < exponent; ++p) divisor *= 3;
+        I64 mod_next = divisor * 3;
+        
+        // Compute E = U ⊗ V ⊗ W mod 3^(exponent+1) without int64 overflow
+        compute_tensor(U, V, W, r, nU, nV, nW, E, mod_next);
         
         // Compute RHS: b = ((T0 - E) / 3^exponent) mod 3
         for (int idx = 0; idx < tensor_size; ++idx) {
-            I64 residual = T0[idx] - E[idx];
+            I64 residual = ((T0[idx] - E[idx]) % mod_next + mod_next) % mod_next;
             I64 quotient = residual / divisor;
-            b[idx] = (U8)(((quotient % 3) + 3) % 3);
+            b[idx] = (U8)(quotient % 3);
         }
 #else
+        // Compute E = U ⊗ V ⊗ W
+        compute_tensor(U, V, W, r, nU, nV, nW, E);
         // Compute RHS: b = ((T0 - E) >> exponent) & 1
         for (int idx = 0; idx < tensor_size; ++idx) {
             I64 residual = T0[idx] - E[idx];

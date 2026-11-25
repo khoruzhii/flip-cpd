@@ -346,7 +346,7 @@ public:
         add(term_idx, comp, new_val);
     }
     
-    // Perform flip operation
+    // Perform flip operation (projective-aware for F3 + greedy rank reduction)
     bool flip() {
         if (!sample_pair()) return false;
         
@@ -354,16 +354,84 @@ public:
         int tn = next[type];
         int tp = prev[type];
         
+        Field c1 = data[3*j1 + type];
+        Field c2 = data[3*j2 + type];
         Field n1 = data[3*j1 + tn];
         Field n2 = data[3*j2 + tn];
         Field p1 = data[3*j1 + tp];
         Field p2 = data[3*j2 + tp];
-        
-        // flip
-        set(j1, tn, n1 - n2);
-        set(j2, tp, p1 + p2);
-        
-        return true;
+
+        if constexpr (field_traits<Field>::is_mod2) {
+            if (c1 != c2) return false;
+            set(j1, tn, n1 - n2);
+            set(j2, tp, p1 + p2);
+            return true;
+        } else {
+            // Handle hash collision guard & projective sign c2 == +c1 or c2 == -c1
+            bool same = (c1 == c2);
+            bool opp  = (!same && c1 == -c2);
+            if (!same && !opp) return false;
+
+            // Rewrite term j2 using s = +1 (same) or -1 (opp) so matched comp is c1:
+            // c1*n1*p1 + (s*c1)*n2*p2 = c1*n1*p1 + c1*(s*n2)*p2
+            Field sn2 = same ? n2 : -n2;
+
+            // Option A (alpha = +1):
+            //   j1: (c1, n1 - sn2, p1)
+            //   j2: (c1, sn2, p1 + p2)
+            // Option B (alpha = -1):
+            //   j1: (c1, n1 + sn2, p1)
+            //   j2: (c1, -sn2, p1 - p2)
+            Field a_n = n1 - sn2;
+            Field a_p = p1 + p2;
+            Field b_n = n1 + sn2;
+            Field b_p = p1 - p2;
+
+            bool a_reduces = a_n.is_zero() || a_p.is_zero();
+            bool b_reduces = b_n.is_zero() || b_p.is_zero();
+
+            bool pick_a;
+            if (a_reduces && !b_reduces) {
+                pick_a = true;
+            } else if (b_reduces && !a_reduces) {
+                pick_a = false;
+            } else {
+                pick_a = (rng() & 1U) == 0;
+            }
+
+            if (pick_a) {
+                if (a_n.is_zero()) {
+                    set(j1, tn, a_n); // zeroes term j1
+                } else {
+                    set(j1, tn, a_n);
+                }
+                if (a_p.is_zero()) {
+                    set(j2, tp, a_p); // zeroes term j2
+                } else {
+                    if (opp) {
+                        set(j2, type, c1);
+                        set(j2, tn, sn2);
+                    }
+                    set(j2, tp, a_p);
+                }
+            } else {
+                if (b_n.is_zero()) {
+                    set(j1, tn, b_n); // zeroes term j1
+                } else {
+                    set(j1, tn, b_n);
+                }
+                if (b_p.is_zero()) {
+                    set(j2, tp, b_p); // zeroes term j2
+                } else {
+                    if (opp) {
+                        set(j2, type, c1);
+                    }
+                    set(j2, tn, -sn2);
+                    set(j2, tp, b_p);
+                }
+            }
+            return true;
+        }
     }
     
     // Perform plus-transition operation
@@ -381,9 +449,17 @@ public:
             Field u1 = data[3*i + 0], v1 = data[3*i + 1], w1 = data[3*i + 2];
             Field u2 = data[3*j + 0], v2 = data[3*j + 1], w2 = data[3*j + 2];
 
-            // Randomly select one of three orientations
+            // Random sign reparametrization of term j over F3 (preserves u2*v2*w2)
             unsigned r = static_cast<unsigned>(rng());
-            unsigned variant = r % 3;
+            if constexpr (!field_traits<Field>::is_mod2) {
+                unsigned sm = r & 3U;
+                if (sm == 1) { u2 = -u2; v2 = -v2; }
+                else if (sm == 2) { u2 = -u2; w2 = -w2; }
+                else if (sm == 3) { v2 = -v2; w2 = -w2; }
+            }
+
+            // Randomly select one of three orientations
+            unsigned variant = (r >> 2) % 3;
 
             Field t1u, t1v, t1w;
             Field t2u, t2v, t2w;
